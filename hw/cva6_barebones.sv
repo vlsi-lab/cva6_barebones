@@ -231,5 +231,29 @@ module cva6_barebones (
 		.gpio_io	(gpio_io)
 	);
 
+	// Ascon accelerator (loosely-coupled AXI slave) @ 0x5000_1000
+	noc_req_t 	ascon_req;
+ 	noc_resp_t	ascon_resp;
+	logic		ascon_intr;
+
+  	`AXI_ASSIGN_TO_REQ(ascon_req, master[DEV_ASCON])
+  	`AXI_ASSIGN_FROM_RESP(master[DEV_ASCON], ascon_resp)
+
+	ascon_axi_top #(
+		.AXI_ADDR_WIDTH	(AxiAddrWidth),
+		.AXI_DATA_WIDTH	(AxiDataWidth),
+		.AXI_ID_WIDTH	(AxiIdWidth),
+		.AXI_USER_WIDTH	(AxiUserWidth),
+		.axi_req_t		(noc_req_t),
+		.axi_rsp_t		(noc_resp_t)
+	) i_ascon (
+		.clk_i			(clk_i),
+		.rst_ni 		(rst_ni),
+		.test_mode_i	(1'b0),
+		.axi_req_i		(ascon_req),
+		.axi_rsp_o		(ascon_resp),
+		.ascon_intr_o	(ascon_intr)
+	);
+
 
 endmodule

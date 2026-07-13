@@ -28,6 +28,7 @@ PROGRAM ?= not_set
 SKIP_ROM ?= 1
 TRACE ?= 0
 TIMEOUT ?= 500000
+PATCH_DIR := $(ROOT_DIR)/patch
 RI_PATH = $(shell $(BENDER) path register_interface)
 REGGEN = $(RI_PATH)/vendor/lowrisc_opentitan/util/regtool.py
 BROMGEN = $(ROOT_DIR)/utils/gen_bootrom.py
@@ -42,10 +43,42 @@ MEMHEX := $(SIM_OUT_DIR)/program.hex
 FLIST := $(VERIF_DIR)/soc.flist
 SIM_BIN := $(VERIF_DIR)/build/$(VERILATED_TB)
 
-.PHONY: getdeps build-program verilate run clean
+.PHONY: getdeps patch build-program verilate run clean
 
 getdeps: Bender.yml
 	$(BENDER) update
+	$(MAKE) patch
+
+# Overlay locally-patched source files onto the bender dependency checkouts.
+# Layout: patch/<dependency>/<path-relative-to-that-dependency-root>
+#   e.g. patch/cva6/core/include/build_config_pkg.sv
+# Each file replaces its upstream counterpart in `bender path <dependency>`.
+# Copies are idempotent, so this is safe to re-run (e.g. after `bender update`).
+patch:
+	@if [ ! -d "$(PATCH_DIR)" ]; then \
+		echo $(BASE_HEADER) No patch/ directory, nothing to apply; \
+	else \
+		for dep_dir in "$(PATCH_DIR)"/*/; do \
+			[ -d "$$dep_dir" ] || continue; \
+			dep="$$(basename "$$dep_dir")"; \
+			dest_root="$$($(BENDER) path "$$dep" 2>/dev/null)"; \
+			if [ -z "$$dest_root" ]; then \
+				echo "$(BASE_HEADER) WARNING: '$$dep' is not a bender dependency, skipping"; \
+				continue; \
+			fi; \
+			( cd "$$dep_dir" && find . -type f ) | sed 's|^\./||' | while read -r rel; do \
+				src="$$dep_dir$$rel"; dst="$$dest_root/$$rel"; \
+				if [ ! -s "$$src" ]; then \
+					echo "$(BASE_HEADER) WARNING: patch/$$dep/$$rel is empty, skipping (unfilled placeholder?)"; \
+				elif [ ! -f "$$dst" ]; then \
+					echo "$(BASE_HEADER) WARNING: patch/$$dep/$$rel has no upstream counterpart at $$dst, skipping"; \
+				else \
+					cp "$$src" "$$dst"; \
+					echo "$(BASE_HEADER) Patched $$dep/$$rel"; \
+				fi; \
+			done; \
+		done; \
+	fi
 
 hw/uart/reg:
 	mkdir -p hw/uart/reg
@@ -139,4 +172,3 @@ clean:
 	rm -rf hw/gpio/reg
 	rm -rf hw/bootrom.sv
 	rm -rf verif/sim_bootrom.sv
-

@@ -28,21 +28,23 @@ package cva6_barebones_pkg;
 	
 	// AXI Crossbar configuration
 	localparam int unsigned axi_master_cnt = 1; // Number of bus masters on the AXI crossbar
-	localparam int unsigned axi_periph_cnt = 4; // Number of peripherals on the AXI crossbar
+	localparam int unsigned axi_periph_cnt = 5; // Number of peripherals on the AXI crossbar
 
 	// AXI Peripherals and address map
 	typedef enum int unsigned {
-		DEV_SRAM = 0,
-		DEV_UART = 1,
-		DEV_BROM = 2,
-		DEV_GPIO = 3
+		DEV_SRAM  = 0,
+		DEV_UART  = 1,
+		DEV_BROM  = 2,
+		DEV_GPIO  = 3,
+		DEV_ASCON = 4
 	} axi_peripherals;
-	
+
 	localparam axi_pkg::xbar_rule_64_t [axi_periph_cnt-1:0] addr_map = '{
-		'{ idx: DEV_SRAM, start_addr: 64'h8000_0000, end_addr: 64'h8000_0000 + 64'h0180_0000 },
-		'{ idx: DEV_UART, start_addr: 64'h1000_0000, end_addr: 64'h1000_0000 + 64'h0000_1000 },
-		'{ idx: DEV_BROM, start_addr: 64'h0001_0000, end_addr: 64'h0001_0000 + 64'h0001_0000 },
-		'{ idx: DEV_GPIO, start_addr: 64'h1000_1000, end_addr: 64'h1000_1000 + 64'h0000_1000 }
+		'{ idx: DEV_SRAM,  start_addr: 64'h8000_0000, end_addr: 64'h8000_0000 + 64'h0180_0000 },
+		'{ idx: DEV_UART,  start_addr: 64'h1000_0000, end_addr: 64'h1000_0000 + 64'h0000_1000 },
+		'{ idx: DEV_BROM,  start_addr: 64'h0001_0000, end_addr: 64'h0001_0000 + 64'h0001_0000 },
+		'{ idx: DEV_GPIO,  start_addr: 64'h1000_1000, end_addr: 64'h1000_1000 + 64'h0000_1000 },
+		'{ idx: DEV_ASCON, start_addr: 64'h5000_1000, end_addr: 64'h5000_1000 + 64'h0000_1000 }
 	};
 
 	// ---------------------------------------------------

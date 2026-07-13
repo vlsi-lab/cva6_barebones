@@ -75,6 +75,28 @@ static void set_uart_div (uint64_t div) {
     *loc_addr = div;
 }
 
+// Lightweight unsigned decimal printer. Prefer this over the sprintf-based
+// printf() macro below when code size matters: the newlib sprintf machinery
+// pulls in ~45 KB of formatting code, which does not fit in the default 64 KB
+// SRAM for larger workloads (e.g. ML-KEM-512).
+static void print_uart_dec(unsigned int value)
+{
+    char buf[10]; // 2^32-1 == 4294967295 -> 10 digits
+    int i = 0;
+
+    if (value == 0) {
+        uart_putchar('0');
+        return;
+    }
+
+    while (value > 0) {
+        buf[i++] = (char)('0' + (value % 10));
+        value /= 10;
+    }
+    while (i > 0)
+        uart_putchar(buf[--i]);
+}
+
 #ifndef BOOTROM
 #define printf(...) do { \
         char text[1024]; \
