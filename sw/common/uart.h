@@ -70,6 +70,27 @@ static void print_uart(const char *str)
     }
 }
 
+static void print_uart_hex8(uint8_t v)
+{
+    uart_print_byte(v);
+}
+
+static void print_uart_dec(unsigned int v)
+{
+    char buf[10];
+    int i = 0;
+    if (v == 0) {
+        uart_putchar('0');
+        return;
+    }
+    while (v > 0) {
+        buf[i++] = '0' + (v % 10);
+        v /= 10;
+    }
+    while (i > 0)
+        uart_putchar(buf[--i]);
+}
+
 static void set_uart_div (uint64_t div) {
     volatile uint64_t *loc_addr = (volatile uint64_t *) (UART_BASE_ADDR + UART_DIVIDER_REG_OFFSET);
     *loc_addr = div;

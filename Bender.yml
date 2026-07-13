@@ -3,7 +3,7 @@ package:
   authors: ["Federico Runco (federico.runco@gmail.com)"]
 
 dependencies:
-  cva6: { git: "https://github.com/openhwgroup/cva6.git", rev: "master" }
+  cva6: { git: "https://github.com/openhwgroup/cva6.git", rev: "378ed3bcfc3f59fe3be544e9764b8720bd6f5704" }
   register_interface: { git: "https://github.com/pulp-platform/register_interface.git", version: "=0.4.1" }  
   axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.31.1 }
 
@@ -23,6 +23,12 @@ sources:
   - hw/gpio/reg/gpio_reg_top.sv
   - hw/gpio/gpio.sv
   - hw/gpio/gpio_top.sv
+
+  - hw/hash_ise/hash_ise_instr_pkg.sv
+  - hw/hash_ise/hash_ise_id.sv
+  - hw/hash_ise/hash_ise_cid.sv
+  - hw/hash_ise/hash_ise_ex.sv
+  - hw/hash_ise/hash_ise_top.sv
 
   - target: synthesis
     files:

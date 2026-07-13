@@ -100,8 +100,28 @@ module cva6_barebones (
 		.noc_resp_i           ( core_axi_resp )
 	);
 
-	// By default the XIF coprocessor is not instantiated
-	assign cvxif_resp = '0;
+	hash_xif #(
+		.NrRgprPorts         ( 3 ),
+		.readregflags_t      ( readregflags_t ),
+		.writeregflags_t     ( writeregflags_t ),
+		.id_t                ( id_t ),
+		.hartid_t            ( hartid_t ),
+		.x_compressed_req_t  ( x_compressed_req_t ),
+		.x_compressed_resp_t ( x_compressed_resp_t ),
+		.x_issue_req_t       ( x_issue_req_t ),
+		.x_issue_resp_t      ( x_issue_resp_t ),
+		.x_register_t        ( x_register_t ),
+		.x_commit_t          ( x_commit_t ),
+		.x_result_t          ( x_result_t ),
+		.cvxif_req_t         ( cvxif_req_t ),
+		.cvxif_resp_t        ( cvxif_resp_t )
+	) hash_ise (
+		.clk_i        ( clk_i ),
+		.rst_ni       ( rst_ni ),
+		.cvxif_req_i  ( cvxif_req ),
+		.cvxif_resp_o ( cvxif_resp )
+	);
+
 
 	`AXI_ASSIGN_FROM_REQ(slave[0], core_axi_req)
   	`AXI_ASSIGN_TO_RESP(core_axi_resp, slave[0])	
