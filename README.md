@@ -1,90 +1,100 @@
-# Keccak or Ascon? — A RISC-V Design-Space Exploration for ML-KEM and ML-DSA Workloads
-This repository contains the RTL implementations for **Keccak or Ascon? — A RISC-V Design-Space Exploration for ML-KEM and ML-DSA Workloads**
+# Keccak or Ascon? — `hash_ise`
+This branch adds a **shared scalar Instruction-Set Extension** that accelerates both Keccak-*f*[1600] and Ascon-*p* from inside the CVA6 pipeline. The extension (`hw/hash_ise`), operating through the Core-V eXtension Interface (CV-X-IF), introduces the following new instructions:
 
-This work compares pure software schemes with dedicated accelerators for Keccak-f[1600] and Ascon-p, and introduces a unified acceleration architecture that supports both permutations through a single shared execution unit integrated into the processor pipeline.
+| Instr. | Format | Encoding | Operation |
+|--------|--------|----------|-----------|
+| `XOR3`   | R4 | `CUSTOM-1`, f2 = 10, f3 = 000 | rd = rs1 ⊕ rs2 ⊕ rs3 |
+| `XANDN`  | R4 | `CUSTOM-1`, f2 = 10, f3 = 001 | rd = rs1 ⊕ (¬rs2 ∧ rs3) |
+| `RXRI.L` | R4 | `CUSTOM-2`, n = f2‖f3 | rd = ROL(rs1 ⊕ rs2 ⊕ ROL(rs3, 1), n) |
+| `RXRI.H` | R4 | `CUSTOM-3`, n = 32 + f2‖f3 | rd = ROL(rs1 ⊕ rs2 ⊕ ROL(rs3, 1), n) |
+| `DRORX`  | I  | `CUSTOM-0`, imm = r1‖r2 | rd = rs1 ⊕ ROR(rs1, r1) ⊕ ROR(rs1, r2) |
 
----
-
-## Project Structure
-Each acceleration strategy lives on its own branch of this repository. All branches share the same SoC skeleton, build flow, and software interface, so that the three design points can be compared under equivalent integration conditions.
-
-| Variant | Branch | Description |
-|---------|--------|-------------|
-| Shared ISE | [`hash_ise`](../../tree/hash_ise) | Shared scalar Instruction-Set Extension integrated directly into the pipeline |
-| Loosely coupled Keccak | [`keccak_loosely`](../../tree/keccak_loosely) | Keccak-f[1600] hardware accellerator |
-| Loosely coupled Ascon | [`ascon_loosely`](../../tree/ascon_loosely) | Ascon-p hardware accellerator |
-
-The `main` branch collects the prebuilt bitstreams for the CW305 Artix-7 board (`xc7a100tftg256-2`).
-
----
-### Requirements
-
-* Python 3 with `hjson`, `mako`, `tabulate` and `pyserial`
-* [Bender](https://github.com/pulp-platform/bender)
-* RISC-V GCC toolchain (RV64)
-* Verilator (simulation) and Vivado (FPGA flow)
-
-## Getting Started
-
-Check out the branch matching the design point you want to evaluate:
-
-```bash
-git clone git@github.com:edge-group-polito/keccak_or_ascon.git
-cd keccak_or_ascon
-git checkout hash_ise # keccak_loosely / ascon_loosely
+## Quick Start
+Fetch the Bender dependencies once, as initial setup:
+```
+make getdeps
 ```
 
-### Simulation
-
-```bash
-# Fetch the Bender dependencies (first time only)
-make getdeps
-
-# Run a program on the SoC testbench
+Any of the tests below can then be simulated by name:
+```
 make run PROGRAM=<TEST_NAME> TIMEOUT=10000
 ```
 
-Results appear on the console and under `verif/out`. The cryptographic tests available are:
+| `TEST_NAME` | Backend | Measures |
+|-----------|---------|----------|
+| `hello_world`  | - | SoC Sanity Check |
+| `keccak-shake128`  | Keccak | Cycle cost of one Keccak-*f*[1600] call, labelled with the SHAKE128 rate (r = 1344 bits) |
+| `ascon-xof128`     | Ascon  | Cycle cost of one Ascon-p12 call, labelled with the Ascon-XOF128 rate (r = 64 bits) |
+| `ascon`            | Ascon  | Ascon-p12 known-answer test against the NIST-LWC reference vectors |
+| `ml-kem-512`       | Keccak | ML-KEM-512 key generation, encapsulation, decapsulation |
+| `ml-dsa-2`         | Keccak | ML-DSA-44 key generation, signature, verification |
+| `ml-kem-512-ascon` | Ascon  | ML-KEM-512 with Ascon-XOF128 replacing SHAKE/SHA-3 |
+| `ml-dsa-2-ascon`   | Ascon  | ML-DSA-44 with Ascon-XOF128 replacing SHAKE/SHA-3 |
 
-| `<TEST_NAME>` | Backend | Measures | `hash_ise` | `keccak_loosely` | `ascon_loosely` |
-|---------------|---------|----------|:----------:|:----------------:|:---------------:|
-| `keccak-shake128`  | Keccak | Cycle cost of one Keccak-f[1600] call| ✅ | ✅ | — |
-| `ascon-xof128`     | Ascon  | Cycle cost of one Ascon-p12 call | ✅ | — | ✅ |
-| `ascon`            | Ascon  | Ascon-p12 KAT against the NIST-LWC reference vectors | ✅ | — | ✅ |
-| `ml-kem-512`       | Keccak | ML-KEM-512 key generation, encapsulation, decapsulation | ✅ | ✅ | — |
-| `ml-dsa-2`         | Keccak | ML-DSA-44 key generation, signature, verification | ✅ | ✅ | — |
-| `ml-kem-512-ascon` | Ascon  | ML-KEM-512 with Ascon-XOF128 replacing SHAKE/SHA-3 | ✅ | — | ✅ |
-| `ml-dsa-2-ascon`   | Ascon  | ML-DSA-44 with Ascon-XOF128 replacing SHAKE/SHA-3 | ✅ | — | ✅ |
 
-Every test builds in two flavours, so that the software baseline and the accelerated run come from the same source. Acceleration is off by default:
+Results are reported on the console and collected under the `verif/out` directory.
+
+## Writing Custom Programs
+Place your program in the `sw` directory. Use the Hello World example `Makefile` as a reference for how to build it. Then run the `run` target from the top-level `Makefile`, passing your selected program as an argument.
+
+Simulations using the UART with realistic baud rates are computationally expensive. To improve simulation performance, configure the UART divider to a high value (up to CLK_FREQ/16).
+
+## FPGA Synthesis
+To synthesize the SoC and generate a bitstream, run:
 
 ```bash
-# Software baseline (RV64 base ISA)
-make run PROGRAM=ml-kem-512 TIMEOUT=10000
-
-make run PROGRAM=ml-kem-512 TIMEOUT=10000 ACCEL=1
+make fpga BOARD=cw305 # CW305 Artix-7 (xc7a100tftg256-2), used for the paper results
 ```
 
-Refer to each branch's own `README.md` for the full SoC documentation, FPGA build flow and the UART bootloader upload.
+The bitstream and the build artifacts (utilization, timing and power reports) are written to `fpga/out/run-YYYY-MM-DD`. Currently, only Vivado is supported.
 
----
+To add support for a new board:
+1. Add a new board entry in `fpga/targets.mk`.
+2. Define the target clock frequency, UART baud rate, and XDC constraints filename.
+3. Add the corresponding XDC file to `fpga/constraints`.
 
-## Citation
+Use the existing targets as the reference implementation.
 
-If you use or build upon the work in these branches, please cite:
+## Uploading a Program
 
-> Federico Runco, Valeria Piscopo, Enrico Manfredi, Alessandra Dolmeta, Maurizio Martina, and Guido Masera. **"Keccak or Ascon? A RISC-V Design-Space Exploration for ML-KEM and ML-DSA Workloads."**, 2026. *(DOI to be added)*
+Once the board is programmed, software is loaded over the same UART through the Boot ROM. Compile your program first, and verify that the generated HEX file includes the `B007BABE` signature on the first line:
 
----
+```bash
+make -C sw/ml-kem-512 ACCEL=1
+```
 
-## Authors
+Then upload it with `upload.py`, passing the serial port the board enumerates as (`--baud` defaults to 115200, matching the FPGA targets):
 
-* **Federico Runco** — federico.runco@polito.it
-* **Valeria Piscopo** — valeria.piscopo@polito.it
-* **Enrico Manfredi** — enrico.manfredi@polito.it
-* **Alessandra Dolmeta** — alessandra.dolmeta@polito.it
+```bash
+python utils/upload.py --hex sw/ml-kem-512/build/mlkem512_accel.hex --port /dev/cu.usbserial-1310
+```
 
----
+Expected output should be similar to the following:
+```
+Waiting for BootROM (rst core to trigger)...
+Sending handshake...
+Waiting for response...
+Upload started...
+Upload complete, 360 bytes sent.
+Waiting for core to jump to RAM...
+Program output:
+----------------------------------------
 
-## License
-This work is released under the Solderpad Hardware License version 2.1, a permissive license based on Apache 2.0. Please refer to the license files on each branch for more information. Third-party dependencies retain the licensing terms of their respective upstream projects; cryptographic software follows the licensing of the reference implementations used as a starting point.
+Hello, world!
+
+----------------------------------------
+```
+
+# Licensing
+Copyright 2026 (c) EDGE Group - Politecnico di Torino
+
+This branch builds on [cva6_barebones](https://github.com/federunco/cva6_barebones), a minimal CVA6 SoC released under the Solderpad Hardware License version 2.1, and is distributed under the same terms. Refer to the upstream repository for the documentation of the base platform.
+
+## Dependencies
+The table below summarizes the main third-party dependencies and their corresponding licenses.
+| Dependency | Version | License | 
+|-|-|-|
+| [cva6](https://github.com/openhwgroup/cva6) | upstream | SPHL v0.51 
+| [axi](https://github.com/pulp-platform/axi) | 0.31.1 | SPHL v0.51 
+| [register_interface](https://github.com/pulp-platform/register_interface) | 0.4.1 | SPHL v0.51 
+| [axi2mem](https://github.com/pulp-platform/axi2mem/blob/master/axi2mem.sv) | upstream | SPHL v0.51 
