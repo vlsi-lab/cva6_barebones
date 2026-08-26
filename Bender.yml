@@ -1,0 +1,51 @@
+package:
+  name: cva6_barebones
+  authors: ["Federico Runco (federico.runco@gmail.com)"]
+
+dependencies:
+  cva6: { git: "https://github.com/openhwgroup/cva6.git", rev: "378ed3bcfc3f59fe3be544e9764b8720bd6f5704" }
+  register_interface: { git: "https://github.com/pulp-platform/register_interface.git", version: "=0.4.1" }  
+  axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.31.1 }
+
+sources:
+  - hw/sram.sv
+  - hw/vendor/axi2mem.sv
+
+  - hw/uart/inc/uart_pkg.sv
+  - hw/uart/reg/uart_reg_pkg.sv
+  - hw/uart/reg/uart_reg_top.sv
+  - hw/uart/baud_gen.sv
+  - hw/uart/uart_rx.sv
+  - hw/uart/uart_tx.sv
+  - hw/uart/uart_top.sv
+
+  - hw/gpio/reg/gpio_reg_pkg.sv
+  - hw/gpio/reg/gpio_reg_top.sv
+  - hw/gpio/gpio.sv
+  - hw/gpio/gpio_top.sv
+
+  - hw/ascon/gen/ascon_reg_pkg.sv
+  - hw/ascon/gen/ascon_reg_top.sv
+  - hw/ascon/rtl/ascon_pkg.sv
+  - hw/ascon/rtl/ascon_round_constants_gen.sv
+  - hw/ascon/rtl/ascon_round.sv
+  - hw/ascon/rtl/ascon_dp.sv
+  - hw/ascon/rtl/ascon_cu.sv
+  - hw/ascon/rtl/ascon_top.sv
+  - hw/ascon/rtl/ascon_axi_top.sv
+
+  - target: synthesis
+    files:
+      - hw/bootrom.sv
+  - target: soc_verilate
+    files:
+      - verif/sim_bootrom.sv
+
+  - hw/include/core_config_pkg.sv
+  - hw/include/cva6_barebones_pkg.sv
+  - hw/cva6_barebones.sv
+
+  - target: soc_verilate
+    files:
+      - verif/sim_uart.sv
+      - verif/tb_boot.sv
